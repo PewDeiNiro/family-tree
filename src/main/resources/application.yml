@@ -1,3 +1,31 @@
+server:
+  port: ${FT_PORT:8070}
+
 spring:
   application:
-    name: family-tree
+    name: ${FT_APPLICATION_NAME:ft_name}
+  jpa:
+    properties:
+      hibernate:
+        default_schema: ${POSTGRES_FT_SCHEMA:ft}
+  datasource:
+    url: ${POSTGRES_DB_URI}
+    username: ${DB_POSTGRES_USER}
+    password: ${DB_POSTGRES_PASSWORD}
+  flyway:
+    enabled: true
+    schemas: ${POSTGRES_FT_SCHEMA}
+    baseline-on-migrate: true
+  security:
+    oauth2:
+        client:
+          provider:
+            keycloak:
+              token-uri: ${KEYCLOAK_HOST_URL}/realms/${KEYCLOAK_REALM:ft}/protocol/openid-connect/token
+              authorization-uri: ${KEYCLOAK_HOST_URL}/realms/${KEYCLOAK_REALM:ft}/protocol/openid-connect/auth
+              user-info-uri: ${KEYCLOAK_HOST_URL}/realms/${KEYCLOAK_REALM:ft}/protocol/openid-connect/userinfo
+              user-name-attribute: preferred_username
+        resource-server:
+          jwt:
+            jwk-set-uri: ${KEYCLOAK_HOST_URL}/realms/${KEYCLOAK_REALM:ft}/protocol/openid-connect/certs
+            principle-attribute: preferred_username
