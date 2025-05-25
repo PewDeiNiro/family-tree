@@ -1,6 +1,72 @@
 services:
-  db:
+  ft-postgres:
+    image: library/postgres:${DB_POSTGRES_VERSION}
+    container_name: ft-postgres
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${DB_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DB_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DB_POSTGRES_DB}
+    healthcheck:
+      test: pg_isready -d ${DB_POSTGRES_DB}
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    ports:
+      - ${DB_POSTGRES_PORT}:5432
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
-  keycloak-db:
+  ft-keycloak-postgres:
+    image: library/postgres:${KEYCLOAK_POSTGRES_VERSION}
+    container_name: ft-keycloak-postgres
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${KEYCLOAK_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${KEYCLOAK_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${KEYCLOAK_POSTGRES_DB}
+    healthcheck:
+      test: pg_isready -d ${KEYCLOAK_POSTGRES_DB}
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    ports:
+      - ${KEYCLOAK_POSTGRES_PORT}:5432
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
-  keycloak:
+  ft-keycloak:
+    image: quay.io/keycloak/keycloak:22.0.0
+    container_name: ft-keycloak
+    command:
+      - start --auto-build --db postgres --hostname-strict-https false --hostname-strict false --proxy edge --http-enabled true --import-realm --spi-user-profile-legacy-user-profile-read-only-attributes *_RES_ACCESS_MODE
+    environment:
+      KC_DB_URL: jdbc:postgresql://ft-keycloak-postgres:5432/${KEYCLOAK_POSTGRES_DB}
+      KC_DB_USERNAME: ${KEYCLOAK_POSTGRES_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_POSTGRES_PASSWORD}
+      KC_DB_SCHEMA: public
+      KC_FEATURES: preview
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - type: bind
+        source: ./realm-export.json
+        target: /opt/keycloak/data/import/realm-export.json
+        read_only: true
+    ports:
+      - ${KEYCLOAK_PORT}:8080
+    depends_on:
+      ft-keycloak-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://0.0.0.0:8080/realms/master" ]
+      start_period: 10s
+      interval: 30s
+      retries: 3
+      timeout: 5s
